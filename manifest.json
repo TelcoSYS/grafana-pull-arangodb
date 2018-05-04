@@ -1,12 +1,13 @@
 {
     "name": "grafana-pull-arangodb",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "description": "ArangoDB Foxx Service to implement Grafana simple-json-datasource",
     "engines": {
         "arangodb": "^3.0.0"
     },
     "author": "TelcoSYS",
     "license": "GPL",
+    "thumbnail": "grafana.png",
     "main": "main.js",
     "scripts": {
         "setup": "scripts/setup.js",
