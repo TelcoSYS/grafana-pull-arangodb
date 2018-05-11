@@ -5,9 +5,17 @@ module.context.use('/metrics', require('./routes/metrics'), 'metrics');
 module.context.use('/config', require('./routes/config'), 'config');
 
 
-const metricCollPrefix = "metric_";
+const metricCollName = module.context.collectionName('metrics');
+const anttnsCollName = module.context.collectionName('annotations');
 
 const db = require('@arangodb').db;
+const cnMetrics = module.context.collection('metrics');
+
+const stmtSearch = db._createStatement( { 
+    "query": "FOR d IN @@coll FILTER NOT d.hidden RETURN d._key",
+    "bindVars": { "@coll" : metricCollName }});
+
+	
 
 const createRouter = require('@arangodb/foxx/router');
 const router = createRouter();
@@ -34,13 +42,7 @@ router.get('/', (req, res) => {
 
 
 router.post('/search',(req, res) => {
-   const reply = [];
-   db._collections().forEach((c)=>{
-     var name = c.name();
-     if(name.startsWith(metricCollPrefix))
-       reply.push(name.substr(metricCollPrefix.length));
-     });
-   res.send(reply);
+   res.send(stmtSearch.execute().toArray());
 });
 
 
@@ -89,20 +91,16 @@ router.post('/query',function (req, res) {
 });
 
 function getTimeserieData(q,t) {
-   const dat = db._query('FOR doc IN @@collection FILTER doc.time >= @from AND doc.time <= @to COLLECT bucket = FLOOR(doc.time/@interval)*@interval INTO values = doc.value RETURN  [AVERAGE(values),bucket]',
-               {'@collection': metricCollPrefix + t.target
-	         ,from:q.from,to:q.to,interval:q.interval}).toArray();
-   return { target:t.target, datapoints: dat };  
+	const mtc = cnMetrics.document(t.target);
+	const dat = db._query(mtc.datapoints,
+			{from:q.from,to:q.to,interval:q.interval}).toArray();
+	return { target:t.target, datapoints: dat };  
 }
 
 function getTableData(q,t) {
-   return { columns: [{text:"Time",type:"time"}
-                     ,{text:"Country",type:"string"}
-		     ,{text:"Number",type:"number"}],
-            rows:[[1234567,"SE",123]
-	         ,[1234567,"DE",231]
-		 ,[1234567,"US",321]], 
-            type:"table" };
+	const mtc = cnMetrics.document(t.target);
+	return { columns: mtc.columns,
+			rows: mtc.rows, type:"table" };
 }
 
 
